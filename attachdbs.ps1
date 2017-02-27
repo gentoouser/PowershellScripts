@@ -1,10 +1,15 @@
 <#
 Description: Attach databases from a folder that are not already on the instance.
 #>
+## Variables
+param (
+	[string]$Data = $null
+ [string]$Log = $null
+ [string]$Instance = $null
+)
 
 $folder = 'D:\mssqlserver\MSSQL11.MSSQLSERVER\MSSQL\DATA'
 $debug = 0
-$instance = 'Tiny'
 $dbsexist = ""
 $dbsnotexist = ""
 
@@ -18,7 +23,28 @@ $dbsnotexist = ""
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum") | Out-Null
 
-$server = New-Object ("Microsoft.SqlServer.Management.Smo.Server") $instance
+$server = New-Object ("Microsoft.SqlServer.Management.Smo.Server") $Instance
+# Default DB Source https://gallery.technet.microsoft.com/scriptcenter/Returning-the-Default-File-a241b326
+$DefaultFileLocation = $SMOServer.Settings.DefaultFile 
+$DefaultLogLocation = $SMOServer.Settings.DefaultLog 
+  
+if ($DefaultFileLocation.Length -eq 0)  
+    {  
+        $DefaultFileLocation = $SMOServer.Information.MasterDBPath  
+    } 
+if ($DefaultLogLocation.Length -eq 0)  
+    {  
+        $DefaultLogLocation = $SMOServer.Information.MasterDBLogPath  
+    } 
+# Default to SQL Default location
+if ([string]::IsNullOrEmpty($Data)) {
+ $Data = $DefaultFileLocation
+}
+if ([string]::IsNullOrEmpty($Log)) {
+ $Log = $DefaultLogLocation
+}
+
+
 if ($debug -eq 2)
  {
     "Database List"
@@ -29,14 +55,14 @@ if ($debug -eq 2)
  #end debug
  }
 
-Write-Output "Checking Files in " + $folder
+Write-Output "Checking Files in " + $Data
 Write-Output " "
 
 # loop through each  of the file
-foreach ($file in Get-ChildItem $folder)
+foreach ($file in Get-ChildItem $Data)
 {
-#Debug
-if ($debug -eq 1)
+ #Debug
+ if ($debug -eq 1)
     {
      Write-Output "Debug 1: All Files: " $file.name
      #end debug
@@ -107,7 +133,7 @@ if ($debug -eq 1)
         $dbname = $file.BaseName
 
         # get log file, assuming same basename as mdf
-        $logfile = $folder + "\" + $file.BaseName + "_log.ldf"
+        $logfile = $Log + "\" + $file.BaseName + "_log.ldf"
         $dbfiles.Add($logfile) | Out-Null
 
         Write-output "Attaching as database (" + $dbname + ") from mdf (" + $file.FullName + ") and ldf (" + $logfile + ")"
