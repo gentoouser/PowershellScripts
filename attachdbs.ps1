@@ -1,18 +1,24 @@
 <#
+Version:	 1.0.1
+Updated:	 20170227
 Description: Attach databases from a folder that are not already on the instance.
+Script Sources:
+	https://github.com/way0utwest/PowershellScripts
+	https://gallery.technet.microsoft.com/scriptcenter/Returning-the-Default-File-a241b326
 #>
-## Variables
+## Parameters 
 param (
-	[string]$Data = $null
- [string]$Log = $null
- [string]$Instance = $null
+	[string]$Data = $null,
+	[string]$Log = $null,
+	[string]$Instance = $null
 )
 
-$folder = 'D:\mssqlserver\MSSQL11.MSSQLSERVER\MSSQL\DATA'
+## Variables
 $debug = 0
 $dbsexist = ""
 $dbsnotexist = ""
-
+$DefaultFileLocation = ""
+$DefaultLogLocation = ""
 #placeholder
 "================================================="
 "=       Start                                   ="
@@ -24,9 +30,9 @@ $dbsnotexist = ""
 [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum") | Out-Null
 
 $server = New-Object ("Microsoft.SqlServer.Management.Smo.Server") $Instance
-# Default DB Source https://gallery.technet.microsoft.com/scriptcenter/Returning-the-Default-File-a241b326
-$DefaultFileLocation = $SMOServer.Settings.DefaultFile 
-$DefaultLogLocation = $SMOServer.Settings.DefaultLog 
+
+$DefaultFileLocation = $server.Settings.DefaultFile 
+$DefaultLogLocation = $server.Settings.DefaultLog 
   
 if ($DefaultFileLocation.Length -eq 0)  
     {  
@@ -45,7 +51,7 @@ if ([string]::IsNullOrEmpty($Log)) {
 }
 
 
-if ($debug -eq 2)
+if ($debug -ge 2)
  {
     "Database List"
     "-------------"
@@ -62,7 +68,7 @@ Write-Output " "
 foreach ($file in Get-ChildItem $Data)
 {
  #Debug
- if ($debug -eq 1)
+ if ($debug -ge 1)
     {
      Write-Output "Debug 1: All Files: " $file.name
      #end debug
@@ -75,7 +81,7 @@ foreach ($file in Get-ChildItem $Data)
    if ($file.Extension -eq '.mdf') 
     {
 
-     if ($debug -eq 1)
+     if ($debug -ge 1)
      {
       Write-Output "Debug 1: MDF File: " $file.name
       #end debug
@@ -105,7 +111,7 @@ foreach ($file in Get-ChildItem $Data)
 
 
          # check the file v the database name
-         if ($debug -eq 1)
+         if ($debug -ge 1)
           {
              "Debug 1: Checking " + $file.FullName + " v " + $filebeingchecked
            }
@@ -122,7 +128,7 @@ foreach ($file in Get-ChildItem $Data)
     if ($found -eq 0)
     {
         $dbsnotexist = $dbsnotexist + $file.BaseName + ", "
-        Write-Output "Need to attach database " + $file.FullName
+        Write-Output ("Need to attach database " + $file.FullName)
 
         # attach the databases
         $dbfiles = New-Object System.Collections.Specialized.StringCollection
@@ -136,7 +142,7 @@ foreach ($file in Get-ChildItem $Data)
         $logfile = $Log + "\" + $file.BaseName + "_log.ldf"
         $dbfiles.Add($logfile) | Out-Null
 
-        Write-output "Attaching as database (" + $dbname + ") from mdf (" + $file.FullName + ") and ldf (" + $logfile + ")"
+        Write-output ("`t Attaching as database (" + $dbname + ") from mdf (" + $file.FullName + ") and ldf (" + $logfile + ")")
         try
         {
             $server.AttachDatabase($dbname, $dbfiles)
@@ -158,7 +164,7 @@ foreach ($file in Get-ChildItem $Data)
  #end loop through files
 }
 
-if ($debug -eq 1)
+if ($debug -ge 1)
 {
  Write-Output "Debug 1: Databases that exist: " + $dbsexist
  Write-Output "Debug 1: Databases that don't exist: " + $dbsnotexist
